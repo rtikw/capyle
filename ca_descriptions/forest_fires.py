@@ -23,9 +23,9 @@ def transition_func(grid, neighbourstates, neighbourcounts):
     dead_neighbours, live_neighbours = neighbourcounts
     # create boolean arrays for the birth & survival rules
     # if 3 live neighbours and is dead -> cell born
-    start_fire = (live_neighbours == 1) & (grid == 0)
+    start_fire = (live_neighbours >= 1) & (grid == 0)
     # if 2 or 3 live neighbours and is alive -> survives
-    survive = ((live_neighbours == 2) | (live_neighbours == 3)) & (grid == 1)
+    survive = grid == 1
     # Set all cells to 0 (dead)
     grid[:, :] = 0
     # Set cells to 1 where either cell is born or survives
