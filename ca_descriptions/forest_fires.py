@@ -16,8 +16,11 @@ from capyle.ca import Grid2D, Neighbourhood, CAConfig, randomise2d
 import capyle.utils as utils
 import numpy as np
 
-terrain_numbers = np.full([10,10], 1)
+terrain_numbers = np.full([50,50], 1)
 terrain_numbers[0,0] = 5
+terrain_numbers[10:15, 5:15] = 2
+terrain_numbers[5:35, 32:35] = 3
+terrain_numbers[30:40, 15:25] = 4
 
 
 def transition_func(grid, neighbourstates, neighbourcounts, fire_types, fire_stages):
@@ -26,10 +29,16 @@ def transition_func(grid, neighbourstates, neighbourcounts, fire_types, fire_sta
     burning = neighbourcounts[5]
 
     #define basic ignition rule
-    ignite = np.logical_and(grid == 1, burning >= 1)
+    burnable = np.logical_and(grid != 0, grid != 5)
+    burnable_terrain = np.logical_and(burnable, grid != 2)
+    ignite = np.logical_and(burnable_terrain, burning >= 1)
+
+    #ignition rule for chaparral
+    chaparral_ignite = np.logical_and(ignite, grid == 1)
+    fire_stages[chaparral_ignite] = 18
 
     #define fire stage for ignition
-    fire_stages[ignite] = 5
+    fire_stages[chaparral_ignite] = 18
 
     #check for burning in fire_stages
     is_burning = fire_stages > 0
@@ -57,11 +66,11 @@ def setup(args):
     # 0: Burnt out, 1: Chaparral, 2: Lake, 3: Canyon, 4: Forest
     # 5: Burning
     config.states = range(6)
-    config.state_colors = [(0,0,0),(0,1,0),(0,0,1),(0.3,0,0),(0,0.3,0),
-    (1,0,0)]
+    config.state_colors = [(0.2,0,0),(0.5,1,0.4),(0.4,0.8,1),(0.8,0.8,0.8),
+    (0,0.3,0),(1,0.4,0.4)]
 
-    config.num_generations = 50
-    config.grid_dims = (10,10)
+    config.num_generations = 70
+    config.grid_dims = (50,50)
     config.initial_grid = terrain_numbers
     config.wrap = False
 
@@ -76,9 +85,9 @@ def main():
     # Open the config object
     config = setup(sys.argv[1:])
 
-    fire_types = np.zeros((10,10))
-    fire_stages = np.zeros((10,10))
-    fire_stages[0,0] = 4
+    fire_types = np.zeros((50,50))
+    fire_stages = np.zeros((50,50))
+    fire_stages[0,0] = 17
     # Create grid object
     grid = Grid2D(config, (transition_func, fire_types, fire_stages))
 
