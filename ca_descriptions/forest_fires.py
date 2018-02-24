@@ -1,4 +1,4 @@
-# Name: Conway's game of life
+# Name: Forest Fire Simulation
 # Dimensions: 2
 
 # --- Set up executable path, do not edit ---
@@ -28,17 +28,20 @@ def transition_func(grid, neighbourstates, neighbourcounts, fire_types, fire_sta
     burnt = neighbourcounts[0]
     burning = neighbourcounts[5]
 
-    #define basic ignition rule
+    #define general ignition rule
     burnable = np.logical_and(grid != 0, grid != 5)
     burnable_terrain = np.logical_and(burnable, grid != 2)
     ignite = np.logical_and(burnable_terrain, burning >= 1)
 
     #ignition rule for chaparral
     chaparral_ignite = np.logical_and(ignite, grid == 1)
-    fire_stages[chaparral_ignite] = 18
-
-    #define fire stage for ignition
-    fire_stages[chaparral_ignite] = 18
+    fire_stages[chaparral_ignite] = 30
+    #ignition rule for canyon
+    canyon_ignite = np.logical_and(ignite, grid == 3)
+    fire_stages[canyon_ignite] = 3
+    #ignition rule for forest
+    forest_ignite = np.logical_and(ignite, grid == 4)
+    fire_stages[forest_ignite] = 180
 
     #check for burning in fire_stages
     is_burning = fire_stages > 0
@@ -51,6 +54,8 @@ def transition_func(grid, neighbourstates, neighbourcounts, fire_types, fire_sta
 
     #burns if ignite is satisfied
     grid[ignite] = 5
+
+    print(fire_stages[30,33])
 
     return grid
 
@@ -69,7 +74,7 @@ def setup(args):
     config.state_colors = [(0.2,0,0),(0.5,1,0.4),(0.4,0.8,1),(0.8,0.8,0.8),
     (0,0.3,0),(1,0.4,0.4)]
 
-    config.num_generations = 70
+    config.num_generations = 300
     config.grid_dims = (50,50)
     config.initial_grid = terrain_numbers
     config.wrap = False
@@ -87,7 +92,7 @@ def main():
 
     fire_types = np.zeros((50,50))
     fire_stages = np.zeros((50,50))
-    fire_stages[0,0] = 17
+    fire_stages[0,0] = 29
     # Create grid object
     grid = Grid2D(config, (transition_func, fire_types, fire_stages))
 
