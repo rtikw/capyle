@@ -53,7 +53,7 @@ def transition_func(grid, neighbourstates, neighbourcounts):
     burnt, unburnt = neighbourcounts[0:2]
 	# unpack state counts for burning states
     burning = np.sum(neighbourcounts[2:])
-    
+
     # light new fires
     ignite = np.full([10,10], False)
     # ignite[grid == 1] = burning * ignition_coef < np.random.rand()
@@ -63,6 +63,8 @@ def transition_func(grid, neighbourstates, neighbourcounts):
 
     grid[grid == 2] = 0 # burn out
     grid[grid > 2] -= 1 # burn down
+
+    print(burning)
 
 
     return grid
@@ -78,7 +80,7 @@ def setup(args):
     # States: burnt, unburn, burning...
     config.states = range(6)
     config.state_colors = [(0,0,0),(0,1,0),(1,0,0),(1,0,0),(1,0,0),(1,0,0)]
-    
+
     config.num_generations = 5
     config.grid_dims = (10,10)
 
@@ -92,7 +94,7 @@ def setup(args):
 def main():
     # Open the config object
     config = setup(sys.argv[1:])
-	
+
     # Create grid object
     grid = Grid2D(config, (transition_func))
 
