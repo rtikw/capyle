@@ -40,8 +40,6 @@ def transition_func(grid, neighbourstates, neighbourcounts, fire_types, fire_sta
     #if fire stage reaches zero, it burns out
     grid[fire_stages == 1] = 0
 
-    print(fire_stages)
-
     #burns if ignite is satisfied
     grid[ignite] = 5
 

@@ -64,8 +64,6 @@ def transition_func(grid, neighbourstates, neighbourcounts):
     grid[grid == 2] = 0 # burn out
     grid[grid > 2] -= 1 # burn down
 
-    print(burning)
-
 
     return grid
 
