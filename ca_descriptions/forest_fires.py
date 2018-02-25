@@ -35,13 +35,19 @@ def transition_func(grid, neighbourstates, neighbourcounts, fire_types, fire_sta
 
     #ignition rule for chaparral
     chaparral_ignite = np.logical_and(ignite, grid == 1)
+    # ignite_prob = 0.7 >= np.random.rand()
+    # chaparral_final = np.logical_and(chaparral_ignite, ignite_prob)
     fire_stages[chaparral_ignite] = 30
+
     #ignition rule for canyon
     canyon_ignite = np.logical_and(ignite, grid == 3)
     fire_stages[canyon_ignite] = 3
+
     #ignition rule for forest
     forest_ignite = np.logical_and(ignite, grid == 4)
-    fire_stages[forest_ignite] = 180
+    # forest_prob = 0.3 > np.random.rand()
+    # forest_final = np.logical_and(forest_ignite, forest_prob)
+    fire_stages[forest_final] = 180
 
     #check for burning in fire_stages
     is_burning = fire_stages > 0
@@ -54,8 +60,6 @@ def transition_func(grid, neighbourstates, neighbourcounts, fire_types, fire_sta
 
     #burns if ignite is satisfied
     grid[ignite] = 5
-
-    print(fire_stages[30,33])
 
     return grid
 
