@@ -17,49 +17,44 @@ import capyle.utils as utils
 import numpy as np
 
 terrain_numbers = np.full([50,50], 1)
-terrain_numbers[0,0] = 5
 terrain_numbers[10:15, 5:15] = 2
 terrain_numbers[5:35, 32:35] = 3
 terrain_numbers[30:40, 15:25] = 4
 
+#Fuel resource level for each terrain type i.e. chaparral burns for 48 steps (4 days)
+terrain_fuel_level = {1:48,2:0,3:4,4:252}
+#Ignition threshold needed to start fire for each terrain type
+terrain_ignition_threshold = {1:2,2:np.inf,3:1,4:5}
 
-def transition_func(grid, neighbourstates, neighbourcounts, fire_types, fire_stages):
-	# unpack state counts for burnt
+
+def transition_func(grid, neighbourstates, neighbourcounts, ignition_level, fuel_level):
+    #Each step is 2 hours
+	#Number of burnt neighbours
     burnt = neighbourcounts[0]
+    #Number of burning neighbours
     burning = neighbourcounts[5]
 
-    #define general ignition rule
-    burnable = np.logical_and(grid != 0, grid != 5)
-    burnable_terrain = np.logical_and(burnable, grid != 2)
-    ignite = np.logical_and(burnable_terrain, burning >= 1)
+    #Calculate ignition values for unburnt cells
+    ignition_level -= 0.4*burning
+    #If ignition threshold is reached, ignite cell
+    ignite = (ignition_level <= 0) & (grid != 5) & (grid != 0)
 
-    #ignition rule for chaparral
-    chaparral_ignite = np.logical_and(ignite, grid == 1)
-    # ignite_prob = 0.7 >= np.random.rand()
-    # chaparral_final = np.logical_and(chaparral_ignite, ignite_prob)
-    fire_stages[chaparral_ignite] = 30
+    #Decrease fuel level of burning states
+    fuel_level[grid == 5] -= 1
 
-    #ignition rule for canyon
-    canyon_ignite = np.logical_and(ignite, grid == 3)
-    fire_stages[canyon_ignite] = 3
-
-    #ignition rule for forest
-    forest_ignite = np.logical_and(ignite, grid == 4)
-    # forest_prob = 0.3 > np.random.rand()
-    # forest_final = np.logical_and(forest_ignite, forest_prob)
-    fire_stages[forest_final] = 180
-
-    #check for burning in fire_stages
-    is_burning = fire_stages > 0
-
-    #if it is burning, decrease it by 1
-    fire_stages[is_burning] -= 1
-
-    #if fire stage reaches zero, it burns out
-    grid[fire_stages == 1] = 0
+    #If fuel level reaches zero, it burns out
+    grid[fuel_level == 1] = 0
 
     #burns if ignite is satisfied
     grid[ignite] = 5
+
+    #todo
+    #Fine-tune ignition thresholds and the effect of the number of neighbours on the ignition value
+    #Implement corner neighbours having less effect on ignition values
+    #Implement wind affecting ignition values
+    #Implement regrowth of terrain?
+    #Implement gradient affecting ignition values?
+    #Implement short and long-term interventions
 
     return grid
 
@@ -69,16 +64,15 @@ def setup(args):
     config = utils.load(config_path)
     config.dimensions = 2
 
-    config.title = "Forest Fires (Charlie)"
+    config.title = "Forest Fire Simulation"
 
     # States:
-    # 0: Burnt out, 1: Chaparral, 2: Lake, 3: Canyon, 4: Forest
-    # 5: Burning
+    # 0: Burnt out, 1: Chaparral, 2: Lake, 3: Canyon, 4: Forest, # 5: Burning
     config.states = range(6)
-    config.state_colors = [(0.2,0,0),(0.5,1,0.4),(0.4,0.8,1),(0.8,0.8,0.8),
-    (0,0.3,0),(1,0.4,0.4)]
+    config.state_colors = [(0,0,0),(215/255,211/255,15/255),(15/255,171/255,223/255),
+        (87/255,113/255,122/255),(11/255,154/255,10/255),(207/255,43/255,8/255)]
 
-    config.num_generations = 300
+    config.num_generations = 400
     config.grid_dims = (50,50)
     config.initial_grid = terrain_numbers
     config.wrap = False
@@ -94,11 +88,21 @@ def main():
     # Open the config object
     config = setup(sys.argv[1:])
 
-    fire_types = np.zeros((50,50))
-    fire_stages = np.zeros((50,50))
-    fire_stages[0,0] = 29
+    ignition_level = np.zeros((50,50))
+    fuel_level = np.zeros((50,50))
+
+    #Set fuel resource for each cell based on terrain
+    fuel_level = np.vectorize(terrain_fuel_level.get)(terrain_numbers)
+
+    #Set ignition Threshold for each cell based on terrain
+    ignition_level = np.vectorize(terrain_ignition_threshold.get,
+        otypes=['float64'])(terrain_numbers)
+
+    #Set starting point of fire
+    terrain_numbers[0,0] = 5
+
     # Create grid object
-    grid = Grid2D(config, (transition_func, fire_types, fire_stages))
+    grid = Grid2D(config, (transition_func, ignition_level, fuel_level))
 
     # Run the CA, save grid state every generation to timeline
     timeline = grid.run()
