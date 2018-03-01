@@ -26,21 +26,55 @@ terrain_fuel_level = {1:48,2:0,3:4,4:252}
 #Ignition threshold needed to start fire for each terrain type
 terrain_ignition_threshold = {1:2,2:np.inf,3:1,4:5}
 
+wind_directions = {'NW':0,'N':1,'NE':2,'E':3,'SE':4,'S':5,'SW':6,'W':7}
+
+#neighbourstate indexes in clockwiwe order (rather than from left to right)
+neighbour_clockwise = [0,1,2,4,7,6,5,3]
+
+#Set wind direction according to wind_directions dictionary
+wind_direction_index = wind_directions['S']
+#Find index of direction opposing the wind
+zero_deg_index = [(wind_direction_index + 4)%8]
+#Find indexes of directions closest to opposing direction
+one_deg_index = [(zero_deg_index[0] - 1)%8,(zero_deg_index[0] + 1)%8]
+#Find indexes of the other directions
+two_plus_deg_index = list(set([i for i in range(8)])-set(zero_deg_index)-set(one_deg_index))
+
+#Convert indexes for use in neighbourstates
+zero_deg_index_neighbour = [neighbour_clockwise[i] for i in zero_deg_index]
+one_deg_index_neighbour = [neighbour_clockwise[i] for i in one_deg_index]
+two_plus_deg_index_neighbour = [neighbour_clockwise[i] for i in two_plus_deg_index]
+
+
+
 
 def transition_func(grid, neighbourstates, neighbourcounts, ignition_level, fuel_level):
     #Each step is 2 hours
-	#Number of burnt neighbours
-    burnt = neighbourcounts[0]
-    #Number of burning neighbours
-    burning = neighbourcounts[5]
+    #Burning cells
+    burning = (grid == 5)
+
+    ignition_incr = np.zeros((50,50))
+    #Find states with a neighbouring burning state in the direction opposing the wind
+    zero_deg = (neighbourstates[zero_deg_index_neighbour[0]] == 5)
+    one_deg = [(neighbourstates[i] ==5) for i in one_deg_index_neighbour]
+    two_plus_deg = [(neighbourstates[i] ==5) for i in two_plus_deg_index_neighbour]
+
+    #Increase ignition values by varying amounts depending on direction of wind
+    ignition_incr[zero_deg] += 2
+    for i in one_deg:
+        ignition_incr[i] += 1.5
+
+    for i in two_plus_deg:
+        ignition_incr[i] += 1
+
 
     #Calculate ignition values for unburnt cells
-    ignition_level -= 0.4*burning
+    ignition_level -= 0.4*ignition_incr
     #If ignition threshold is reached, ignite cell
     ignite = (ignition_level <= 0) & (grid != 5) & (grid != 0)
 
     #Decrease fuel level of burning states
-    fuel_level[grid == 5] -= 1
+    fuel_level[burning] -= 1
 
     #If fuel level reaches zero, it burns out
     grid[fuel_level == 1] = 0
@@ -51,7 +85,8 @@ def transition_func(grid, neighbourstates, neighbourcounts, ignition_level, fuel
     #todo
     #Fine-tune ignition thresholds and the effect of the number of neighbours on the ignition value
     #Implement corner neighbours having less effect on ignition values
-    #Implement wind affecting ignition values
+    #Implement wind affecting ignition values X
+    #Implement wind strength?
     #Implement regrowth of terrain?
     #Implement gradient affecting ignition values?
     #Implement short and long-term interventions
