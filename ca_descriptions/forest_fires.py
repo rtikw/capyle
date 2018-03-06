@@ -16,10 +16,16 @@ from capyle.ca import Grid2D, Neighbourhood, CAConfig, randomise2d
 import capyle.utils as utils
 import numpy as np
 
+water_x = 33
+water_y = 31
+water_x_end = water_x + 10
+water_y_end = water_y + 10
+
 terrain_numbers = np.full([50,50], 1)
 terrain_numbers[10:15, 5:15] = 2
 terrain_numbers[5:35, 32:35] = 3
 terrain_numbers[30:40, 15:25] = 4
+terrain_numbers[water_x : water_x_end, water_y : water_y_end] = 2
 
 #Fuel resource level for each terrain type i.e. chaparral burns for 48 steps (4 days)
 terrain_fuel_level = {1:48,2:0,3:4,4:252}
