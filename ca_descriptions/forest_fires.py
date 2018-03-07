@@ -16,21 +16,37 @@ from capyle.ca import Grid2D, Neighbourhood, CAConfig, randomise2d
 import capyle.utils as utils
 import numpy as np
 
-water_x = 33
-water_y = 31
+#Test conditions
+grid_axis = 50
+
+power_plant = True
+incinerator = False
+
+water_drop = True
+water_x = 56
+water_y = 50
+
+extend_forest = True
+forest_x = 20
+forest_y = 20
+
+
+#Terrain placements
+offset = (grid_axis-50)/2
+
 water_x_end = water_x + 10
 water_y_end = water_y + 10
 
-terrain_numbers = np.full([50,50], 1)
-terrain_numbers[10:15, 5:15] = 2
-terrain_numbers[5:35, 32:35] = 3
-terrain_numbers[30:40, 15:25] = 4
-terrain_numbers[water_x : water_x_end, water_y : water_y_end] = 2
+terrain_numbers = np.full([grid_axis,grid_axis], 1)
+terrain_numbers[10+offset:15+offset, 5+offset:15+offset] = 2
+terrain_numbers[5+offset:35+offset, 32+offset:35+offset] = 3
+terrain_numbers[30+offset:40+offset, 15+offset:25+offset] = 4
+if water_drop: terrain_numbers[water_x+offset:water_x_end+offset, water_y+offset: water_y_end+offset] = 2
 
 #Fuel resource level for each terrain type i.e. chaparral burns for 48 steps (4 days)
-terrain_fuel_level = {1:48,2:0,3:4,4:252}
+terrain_fuel_level = {1:48,2:0,3:10,4:252}
 #Ignition threshold needed to start fire for each terrain type
-terrain_ignition_threshold = {1:2,2:np.inf,3:1,4:5}
+terrain_ignition_threshold = {1:10,2:np.inf,3:1,4:100}
 
 wind_directions = {'NW':0,'N':1,'NE':2,'E':3,'SE':4,'S':5,'SW':6,'W':7}
 
@@ -39,6 +55,7 @@ neighbour_clockwise = [0,1,2,4,7,6,5,3]
 
 #Set wind direction according to wind_directions dictionary
 wind_direction_index = wind_directions['S']
+
 #Find index of direction opposing the wind
 zero_deg_index = [(wind_direction_index + 4)%8]
 #Find indexes of directions closest to opposing direction
@@ -59,7 +76,7 @@ def transition_func(grid, neighbourstates, neighbourcounts, ignition_level, fuel
     #Burning cells
     burning = (grid == 5)
 
-    ignition_incr = np.zeros((50,50))
+    ignition_incr = np.zeros((grid_axis,grid_axis))
     #Find states with a neighbouring burning state in the direction opposing the wind
     zero_deg = (neighbourstates[zero_deg_index_neighbour[0]] == 5)
     one_deg = [(neighbourstates[i] ==5) for i in one_deg_index_neighbour]
@@ -113,8 +130,8 @@ def setup(args):
     config.state_colors = [(0,0,0),(215/255,211/255,15/255),(15/255,171/255,223/255),
         (87/255,113/255,122/255),(11/255,154/255,10/255),(207/255,43/255,8/255)]
 
-    config.num_generations = 400
-    config.grid_dims = (50,50)
+    config.num_generations = 1000
+    config.grid_dims = (grid_axis,grid_axis)
     config.initial_grid = terrain_numbers
     config.wrap = False
 
@@ -129,8 +146,8 @@ def main():
     # Open the config object
     config = setup(sys.argv[1:])
 
-    ignition_level = np.zeros((50,50))
-    fuel_level = np.zeros((50,50))
+    ignition_level = np.zeros((grid_axis,grid_axis))
+    fuel_level = np.zeros((grid_axis,grid_axis))
 
     #Set fuel resource for each cell based on terrain
     fuel_level = np.vectorize(terrain_fuel_level.get)(terrain_numbers)
@@ -140,7 +157,8 @@ def main():
         otypes=['float64'])(terrain_numbers)
 
     #Set starting point of fire
-    terrain_numbers[0,0] = 5
+    if power_plant: terrain_numbers[0+offset,0+offset] = 5
+    if incinerator: terrain_numbers [0+offset,50+offset] = 5
 
     # Create grid object
     grid = Grid2D(config, (transition_func, ignition_level, fuel_level))
