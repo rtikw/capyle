@@ -22,26 +22,17 @@ grid_axis = 50
 power_plant = True
 incinerator = False
 
-water_drop = True
-water_x = 56
-water_y = 50
-
 extend_forest = True
 forest_x = 20
 forest_y = 20
 
-
 #Terrain placements
 offset = 0
-
-water_x_end = water_x + 10
-water_y_end = water_y + 10
 
 terrain_numbers = np.full([grid_axis,grid_axis], 1)
 terrain_numbers[10+offset:15+offset, 5+offset:15+offset] = 2
 terrain_numbers[5+offset:35+offset, 32+offset:35+offset] = 3
 terrain_numbers[30+offset:40+offset, 15+offset:25+offset] = 4
-if water_drop: terrain_numbers[water_x+offset:water_x_end+offset, water_y+offset: water_y_end+offset] = 2
 
 #Fuel resource level for each terrain type i.e. chaparral burns for 48 steps (4 days)
 terrain_fuel_level = {1:48,2:0,3:10,4:252}
@@ -71,8 +62,22 @@ two_plus_deg_index_neighbour = [neighbour_clockwise[i] for i in two_plus_deg_ind
 
 
 
-def transition_func(grid, neighbourstates, neighbourcounts, ignition_level, fuel_level):
+def transition_func(grid, neighbourstates, neighbourcounts, ignition_level, fuel_level, water_drops, timestep):
     #Each step is 2 hours
+
+    for water_drop in water_drops:
+        #Extract drop location coordinates and time
+        (dr_x1,dr_y1,dr_x2,dr_y2), drop_start, drop_end  = water_drop
+        if timestep[0] >= drop_start and timestep[0] < drop_end:
+            grid[dr_y1:dr_y2,dr_x1:dr_x2] = 2
+            ignition_level[dr_y1:dr_y2, dr_x1:dr_x2] = np.inf
+
+        if (timestep[0] == drop_end):
+            grid[dr_y1:dr_y2, dr_x1:dr_x2] = terrain_numbers[dr_y1:dr_y2, dr_x1:dr_x2]
+            ignition_level[dr_y1:dr_y2, dr_x1:dr_x2] = np.vectorize(terrain_ignition_threshold.get,
+                otypes=['float64'])(terrain_numbers[dr_y1:dr_y2, dr_x1:dr_x2])
+
+
     #Burning cells
     burning = (grid == 5)
 
@@ -104,6 +109,8 @@ def transition_func(grid, neighbourstates, neighbourcounts, ignition_level, fuel
 
     #burns if ignite is satisfied
     grid[ignite] = 5
+
+    timestep[0] += 1
 
     #todo
     #Fine-tune ignition thresholds and the effect of the number of neighbours on the ignition value
@@ -160,8 +167,12 @@ def main():
     if power_plant: terrain_numbers[0+offset,0+offset] = 5
     if incinerator: terrain_numbers [0+offset,50+offset] = 5
 
+    #Setup water water drop params ((x1,y1,x2,y2), start_timestep, end_timestep)
+    water_drops = [((5+offset,0+offset,15+offset,8+offset),97, 107),((20+offset,10+offset,25+offset,20+offset),230, 240)]
+    timestep = np.array([0])
+
     # Create grid object
-    grid = Grid2D(config, (transition_func, ignition_level, fuel_level))
+    grid = Grid2D(config, (transition_func, ignition_level, fuel_level, water_drops, timestep))
 
     # Run the CA, save grid state every generation to timeline
     timeline = grid.run()
