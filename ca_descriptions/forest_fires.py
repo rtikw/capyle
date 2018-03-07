@@ -32,7 +32,7 @@ forest_y = 20
 
 
 #Terrain placements
-offset = (grid_axis-50)/2
+offset = 0
 
 water_x_end = water_x + 10
 water_y_end = water_y + 10
