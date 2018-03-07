@@ -22,9 +22,10 @@ grid_axis = 50
 power_plant = True
 incinerator = False
 
-extend_forest = True
-forest_x = 20
-forest_y = 20
+drop_water = False
+extend_forest = False
+#Forest coordinates (x1,y1,x2,y2)
+forest_coor = (5,20,15,30)
 
 #Terrain placements
 offset = 0
@@ -33,6 +34,9 @@ terrain_numbers = np.full([grid_axis,grid_axis], 1)
 terrain_numbers[10+offset:15+offset, 5+offset:15+offset] = 2
 terrain_numbers[5+offset:35+offset, 32+offset:35+offset] = 3
 terrain_numbers[30+offset:40+offset, 15+offset:25+offset] = 4
+if extend_forest:
+    (ef_x1,ef_y1,ef_x2,ef_y2) = forest_coor
+    terrain_numbers[ef_y1:ef_y2,ef_x1:ef_x2] = 4
 
 #Fuel resource level for each terrain type i.e. chaparral burns for 48 steps (4 days)
 terrain_fuel_level = {1:48,2:0,3:10,4:252}
@@ -45,7 +49,7 @@ wind_directions = {'NW':0,'N':1,'NE':2,'E':3,'SE':4,'S':5,'SW':6,'W':7}
 neighbour_clockwise = [0,1,2,4,7,6,5,3]
 
 #Set wind direction according to wind_directions dictionary
-wind_direction_index = wind_directions['S']
+wind_direction_index = wind_directions['E']
 
 #Find index of direction opposing the wind
 zero_deg_index = [(wind_direction_index + 4)%8]
@@ -59,53 +63,67 @@ zero_deg_index_neighbour = [neighbour_clockwise[i] for i in zero_deg_index]
 one_deg_index_neighbour = [neighbour_clockwise[i] for i in one_deg_index]
 two_plus_deg_index_neighbour = [neighbour_clockwise[i] for i in two_plus_deg_index]
 
-
-
+#Wind Strength
+wind_strength = 0.3
+wind_strength = np.clip(wind_strength,0,1)
 
 def transition_func(grid, neighbourstates, neighbourcounts, ignition_level, fuel_level, water_drops, timestep):
     #Each step is 2 hours
 
-    for water_drop in water_drops:
-        #Extract drop location coordinates and time
-        (dr_x1,dr_y1,dr_x2,dr_y2), drop_start, drop_end  = water_drop
-        if timestep[0] >= drop_start and timestep[0] < drop_end:
-            grid[dr_y1:dr_y2,dr_x1:dr_x2] = 2
-            ignition_level[dr_y1:dr_y2, dr_x1:dr_x2] = np.inf
+    if drop_water:
+        for water_drop in water_drops:
+            #Extract drop location coordinates and time
+            (dr_x1,dr_y1,dr_x2,dr_y2), drop_start, drop_end  = water_drop
+            if timestep[0] >= drop_start and timestep[0] < drop_end:
+                grid[dr_y1:dr_y2,dr_x1:dr_x2] = 2
+                ignition_level[dr_y1:dr_y2, dr_x1:dr_x2] = np.inf
 
-        if (timestep[0] == drop_end):
-            grid[dr_y1:dr_y2, dr_x1:dr_x2] = terrain_numbers[dr_y1:dr_y2, dr_x1:dr_x2]
-            ignition_level[dr_y1:dr_y2, dr_x1:dr_x2] = np.vectorize(terrain_ignition_threshold.get,
-                otypes=['float64'])(terrain_numbers[dr_y1:dr_y2, dr_x1:dr_x2])
+            if (timestep[0] == drop_end):
+                grid[dr_y1:dr_y2, dr_x1:dr_x2] = terrain_numbers[dr_y1:dr_y2, dr_x1:dr_x2]
+                ignition_level[dr_y1:dr_y2, dr_x1:dr_x2] = np.vectorize(terrain_ignition_threshold.get,
+                    otypes=['float64'])(terrain_numbers[dr_y1:dr_y2, dr_x1:dr_x2])
 
 
     #Burning cells
     burning = (grid == 5)
 
     ignition_incr = np.zeros((grid_axis,grid_axis))
+    #Count neighbouring corner burning cells
+    side_burn = np.zeros((50,50))
+    for i in range(1,8,2):
+     side_burn[neighbourstates[neighbour_clockwise[i]] == 5] += 1
+
+    corner_burn = np.zeros((50,50))
+    for i in range(0,7,2):
+     corner_burn[neighbourstates[neighbour_clockwise[i]] == 5] += 1
+
+    ignition_incr += side_burn
+    ignition_incr += corner_burn * 0.5
+
     #Find states with a neighbouring burning state in the direction opposing the wind
     zero_deg = (neighbourstates[zero_deg_index_neighbour[0]] == 5)
     one_deg = [(neighbourstates[i] ==5) for i in one_deg_index_neighbour]
     two_plus_deg = [(neighbourstates[i] ==5) for i in two_plus_deg_index_neighbour]
 
     #Increase ignition values by varying amounts depending on direction of wind
-    ignition_incr[zero_deg] += 2
+    ignition_incr[zero_deg] += (2 * wind_strength)
     for i in one_deg:
-        ignition_incr[i] += 1.5
+        ignition_incr[i] += (1 * wind_strength)
 
     for i in two_plus_deg:
-        ignition_incr[i] += 1
+        ignition_incr[i] += (0.25 * wind_strength)
 
 
     #Calculate ignition values for unburnt cells
-    ignition_level -= 0.4*ignition_incr
+    ignition_level -= ignition_incr
     #If ignition threshold is reached, ignite cell
     ignite = (ignition_level <= 0) & (grid != 5) & (grid != 0)
 
     #Decrease fuel level of burning states
-    fuel_level[burning] -= 1
+    fuel_level[burning] -= (1 + wind_strength)
 
     #If fuel level reaches zero, it burns out
-    grid[fuel_level == 1] = 0
+    grid[(fuel_level <= 0) & (burning)] = 0
 
     #burns if ignite is satisfied
     grid[ignite] = 5
@@ -113,13 +131,13 @@ def transition_func(grid, neighbourstates, neighbourcounts, ignition_level, fuel
     timestep[0] += 1
 
     #todo
-    #Fine-tune ignition thresholds and the effect of the number of neighbours on the ignition value
-    #Implement corner neighbours having less effect on ignition values
+    #Fine-tune ignition thresholds and the effect of the number of neighbours on the ignition value X
+    #Implement corner neighbours having less effect on ignition values X
     #Implement wind affecting ignition values X
-    #Implement wind strength?
+    #Implement wind strength? X
     #Implement regrowth of terrain?
     #Implement gradient affecting ignition values?
-    #Implement short and long-term interventions
+    #Implement short and long-term interventions X
 
     return grid
 
@@ -157,7 +175,7 @@ def main():
     fuel_level = np.zeros((grid_axis,grid_axis))
 
     #Set fuel resource for each cell based on terrain
-    fuel_level = np.vectorize(terrain_fuel_level.get)(terrain_numbers)
+    fuel_level = np.vectorize(terrain_fuel_level.get,otypes=['float64'])(terrain_numbers)
 
     #Set ignition Threshold for each cell based on terrain
     ignition_level = np.vectorize(terrain_ignition_threshold.get,
