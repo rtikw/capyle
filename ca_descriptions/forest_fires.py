@@ -4,6 +4,8 @@
 # --- Set up executable path, do not edit ---
 import sys
 import inspect
+import math
+
 this_file_loc = (inspect.stack()[0][1])
 main_dir_loc = this_file_loc[:this_file_loc.index('ca_descriptions')]
 sys.path.append(main_dir_loc)
@@ -50,7 +52,7 @@ wind_directions = {'NW':0,'N':1,'NE':2,'E':3,'SE':4,'S':5,'SW':6,'W':7}
 neighbour_clockwise = [0,1,2,4,7,6,5,3]
 
 #Set wind direction according to wind_directions dictionary
-wind_direction_index = wind_directions['E']
+wind_direction_index = wind_directions['S']
 
 #Find index of direction opposing the wind
 zero_deg_index = [(wind_direction_index + 4)%8]
@@ -65,8 +67,19 @@ one_deg_index_neighbour = [neighbour_clockwise[i] for i in one_deg_index]
 two_plus_deg_index_neighbour = [neighbour_clockwise[i] for i in two_plus_deg_index]
 
 #Wind Strength
-wind_strength = 0
+wind_strength = 0.3
 wind_strength = np.clip(wind_strength,0,1)
+
+wind_speed = 0.2
+wind_angle = 45
+
+
+def wind_strength_fn(angle):
+    return wind_speed * math.cos((wind_angle + angle) * (2*math.pi/360))
+
+# wind strength to match "neighborstates"
+# in directions NE,N,NW,E,W,SE,S,SW
+wind_strengths = [wind_strength_fn(a) for a in [-45,0,45,-90,90,-135,180,135]]
 
 
 def transition_func(grid, neighbourstates, neighbourcounts, ignition_level, fuel_level, water_drops, timestep):
@@ -108,13 +121,28 @@ def transition_func(grid, neighbourstates, neighbourcounts, ignition_level, fuel
     two_plus_deg = [(neighbourstates[i] ==5) for i in two_plus_deg_index_neighbour]
 
     #Increase ignition values by varying amounts depending on direction of wind
+    '''
     ignition_incr[zero_deg] += (2 * wind_strength)
     for i in one_deg:
         ignition_incr[i] += (1 * wind_strength)
 
     for i in two_plus_deg:
         ignition_incr[i] += (0.25 * wind_strength)
+    '''
+    # for each cell
+    wind_states = np.zeros((grid_axis,grid_axis))
 
+
+
+    for i,row in enumerate(grid):
+        for j,cell in enumerate(row):
+            total = 0
+            # for each neighborstates
+            for ni in range(8):
+                if (neighbourstates[ni,i,j]==5):
+                    # if it is burning
+                    total += wind_strengths[ni]
+            ignition_level[i,j] += total
 
     #Calculate ignition values for unburnt cells
     ignition_level -= ignition_incr
