@@ -46,45 +46,22 @@ terrain_fuel_level = {1:48,2:0,3:10,4:252}
 #Ignition threshold needed to start fire for each terrain type
 terrain_ignition_threshold = {1:10,2:np.inf,3:1,4:100}
 
-wind_directions = {'NW':0,'N':1,'NE':2,'E':3,'SE':4,'S':5,'SW':6,'W':7}
-
 #neighbourstate indexes in clockwiwe order (rather than from left to right)
 neighbour_clockwise = [0,1,2,4,7,6,5,3]
 
-#Set wind direction according to wind_directions dictionary
-wind_direction_index = wind_directions['S']
-
-#Find index of direction opposing the wind
-zero_deg_index = [(wind_direction_index + 4)%8]
-#Find indexes of directions closest to opposing direction
-one_deg_index = [(zero_deg_index[0] - 1)%8,(zero_deg_index[0] + 1)%8]
-#Find indexes of the other directions
-two_plus_deg_index = list(set([i for i in range(8)])-set(zero_deg_index)-set(one_deg_index))
-
-#Convert indexes for use in neighbourstates
-zero_deg_index_neighbour = [neighbour_clockwise[i] for i in zero_deg_index]
-one_deg_index_neighbour = [neighbour_clockwise[i] for i in one_deg_index]
-two_plus_deg_index_neighbour = [neighbour_clockwise[i] for i in two_plus_deg_index]
-
-#Wind Strength
-wind_strength = 0.3
-wind_strength = np.clip(wind_strength,0,1)
-
-wind_speed = 0.2
-wind_angle = 45
-
+wind_speed = 0.3
+wind_angle = 200
 
 def wind_strength_fn(angle):
-    return wind_speed * math.cos((wind_angle + angle) * (2*math.pi/360))
+    return wind_speed * (math.cos(math.radians(wind_angle + angle)))
 
-# wind strength to match "neighborstates"
+# wind strength to match "neighbourstates"
 # in directions NE,N,NW,E,W,SE,S,SW
-wind_strengths = [wind_strength_fn(a) for a in [-45,0,45,-90,90,-135,180,135]]
-
+wind_strengths = [wind_strength_fn(a + 180) for a in [-45,0,45,-90,90,-135,180,135]]
+print(wind_strengths)
 
 def transition_func(grid, neighbourstates, neighbourcounts, ignition_level, fuel_level, water_drops, timestep):
     #Each step is 2 hours
-
     if drop_water:
         for water_drop in water_drops:
             #Extract drop location coordinates and time
@@ -115,34 +92,10 @@ def transition_func(grid, neighbourstates, neighbourcounts, ignition_level, fuel
     ignition_incr += side_burn
     ignition_incr += corner_burn * 0.5
 
-    #Find states with a neighbouring burning state in the direction opposing the wind
-    zero_deg = (neighbourstates[zero_deg_index_neighbour[0]] == 5)
-    one_deg = [(neighbourstates[i] ==5) for i in one_deg_index_neighbour]
-    two_plus_deg = [(neighbourstates[i] ==5) for i in two_plus_deg_index_neighbour]
-
-    #Increase ignition values by varying amounts depending on direction of wind
-    '''
-    ignition_incr[zero_deg] += (2 * wind_strength)
-    for i in one_deg:
-        ignition_incr[i] += (1 * wind_strength)
-
-    for i in two_plus_deg:
-        ignition_incr[i] += (0.25 * wind_strength)
-    '''
-    # for each cell
-    wind_states = np.zeros((grid_axis,grid_axis))
-
-
-
-    for i,row in enumerate(grid):
-        for j,cell in enumerate(row):
-            total = 0
-            # for each neighborstates
-            for ni in range(8):
-                if (neighbourstates[ni,i,j]==5):
-                    # if it is burning
-                    total += wind_strengths[ni]
-            ignition_level[i,j] += total
+    for i in range(0,8):
+        ignition_incr[neighbourstates[i] == 5] += wind_strengths[i]
+        if timestep == 4:
+            print()
 
     #Calculate ignition values for unburnt cells
     ignition_level -= ignition_incr
@@ -150,7 +103,7 @@ def transition_func(grid, neighbourstates, neighbourcounts, ignition_level, fuel
     ignite = (ignition_level <= 0) & (grid != 5) & (grid != 0)
 
     #Decrease fuel level of burning states
-    fuel_level[burning] -= (1 + wind_strength)
+    fuel_level[burning] -= 1 + (wind_speed*0.5)
 
     #If fuel level reaches zero, it burns out
     grid[(fuel_level <= 0) & (burning)] = 0
