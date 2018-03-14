@@ -17,10 +17,10 @@ import capyle.utils as utils
 import numpy as np
 
 #Test conditions
-grid_axis = 50
+grid_axis = 100
 
-power_plant = True
-incinerator = False
+power_plant = False
+incinerator = True
 
 drop_water = False
 extend_forest = False
@@ -28,12 +28,13 @@ extend_forest = False
 forest_coor = (5,20,15,30)
 
 #Terrain placements
-offset = 0
+offset = 25
 
 terrain_numbers = np.full([grid_axis,grid_axis], 1)
 terrain_numbers[10+offset:15+offset, 5+offset:15+offset] = 2
 terrain_numbers[5+offset:35+offset, 32+offset:35+offset] = 3
 terrain_numbers[30+offset:40+offset, 15+offset:25+offset] = 4
+terrain_numbers[50+offset, 0+offset] = 2
 if extend_forest:
     (ef_x1,ef_y1,ef_x2,ef_y2) = forest_coor
     terrain_numbers[ef_y1:ef_y2,ef_x1:ef_x2] = 4
@@ -64,8 +65,9 @@ one_deg_index_neighbour = [neighbour_clockwise[i] for i in one_deg_index]
 two_plus_deg_index_neighbour = [neighbour_clockwise[i] for i in two_plus_deg_index]
 
 #Wind Strength
-wind_strength = 0.3
+wind_strength = 0
 wind_strength = np.clip(wind_strength,0,1)
+
 
 def transition_func(grid, neighbourstates, neighbourcounts, ignition_level, fuel_level, water_drops, timestep):
     #Each step is 2 hours
@@ -89,11 +91,11 @@ def transition_func(grid, neighbourstates, neighbourcounts, ignition_level, fuel
 
     ignition_incr = np.zeros((grid_axis,grid_axis))
     #Count neighbouring corner burning cells
-    side_burn = np.zeros((50,50))
+    side_burn = np.zeros((grid_axis,grid_axis))
     for i in range(1,8,2):
      side_burn[neighbourstates[neighbour_clockwise[i]] == 5] += 1
 
-    corner_burn = np.zeros((50,50))
+    corner_burn = np.zeros((grid_axis,grid_axis))
     for i in range(0,7,2):
      corner_burn[neighbourstates[neighbour_clockwise[i]] == 5] += 1
 
@@ -183,7 +185,7 @@ def main():
 
     #Set starting point of fire
     if power_plant: terrain_numbers[0+offset,0+offset] = 5
-    if incinerator: terrain_numbers [0+offset,50+offset] = 5
+    if incinerator: terrain_numbers [0+offset,49+offset] = 5
 
     #Setup water water drop params ((x1,y1,x2,y2), start_timestep, end_timestep)
     water_drops = [((5+offset,0+offset,15+offset,8+offset),97, 107),((20+offset,10+offset,25+offset,20+offset),230, 240)]
