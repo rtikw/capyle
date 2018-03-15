@@ -145,7 +145,7 @@ def setup(args):
     config.state_colors = [(0,0,0),(215/255,211/255,15/255),(15/255,171/255,223/255),
         (87/255,113/255,122/255),(11/255,154/255,10/255),(207/255,43/255,8/255)]
 
-    config.num_generations = 1500
+    config.num_generations = 1000
     config.grid_dims = (grid_axis,grid_axis)
     config.initial_grid = terrain_numbers
     config.wrap = False
@@ -159,8 +159,10 @@ def setup(args):
 
 def main():
 
-    wind_x = 0.5
-    wind_y = 0.5
+    # NOTE: set the wind here if doing it programatically
+    # Default: light prevaling wind southward
+    wind_x = 0.0
+    wind_y = -0.2
     # if passed extra command-line args, assumed it's for custom wind
     if (len(sys.argv) == 4):
         wind_x = float(sys.argv[2])
